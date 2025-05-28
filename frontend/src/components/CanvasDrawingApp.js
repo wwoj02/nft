@@ -1,5 +1,7 @@
+// src/components/CanvasDrawingApp.js
 import React, { useRef, useState, useEffect } from "react";
 import "../DrawingApp.css";
+import api from "../api";
 
 const CANVAS_DEFAULT_WIDTH = 700;
 const CANVAS_DEFAULT_HEIGHT = 450;
@@ -22,8 +24,12 @@ export default function CanvasDrawingApp({ user }) {
   const [isPixelMode, setIsPixelMode] = useState(false);
   const [cols, setCols] = useState(DEFAULT_COLS);
   const [pendingCols, setPendingCols] = useState(DEFAULT_COLS.toString());
-  const [pixelSize, setPixelSize] = useState(Math.floor(width / DEFAULT_COLS));
-  const [rows, setRows] = useState(Math.floor(height / Math.floor(width / DEFAULT_COLS)));
+  const [pixelSize, setPixelSize] = useState(
+    Math.floor(width / DEFAULT_COLS)
+  );
+  const [rows, setRows] = useState(
+    Math.floor(height / Math.floor(width / DEFAULT_COLS))
+  );
 
   // Toast notification
   const [toast, setToast] = useState(null);
@@ -43,7 +49,7 @@ export default function CanvasDrawingApp({ user }) {
     setRows(Math.floor(height / px));
   }, [width, height, cols]);
 
-  // Draw grid for pixel art mode (on separate canvas)
+  // Draw grid for pixel art mode
   useEffect(() => {
     if (!gridCanvasRef.current) return;
     const ctx = gridCanvasRef.current.getContext("2d");
@@ -66,7 +72,7 @@ export default function CanvasDrawingApp({ user }) {
     ctx.restore();
   }, [isPixelMode, width, height, pixelSize]);
 
-  // Initialize canvas and undo stack
+  // Initialize undo stack
   useEffect(() => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
@@ -74,7 +80,7 @@ export default function CanvasDrawingApp({ user }) {
     setRedoStack([]);
   }, [width, height]);
 
-  // Reset drawing and history when switching modes
+  // Toggle modes
   const handleModeChange = (newMode) => {
     if (isPixelMode !== newMode) {
       setIsPixelMode(newMode);
@@ -94,15 +100,14 @@ export default function CanvasDrawingApp({ user }) {
     setRedoStack([]);
     const rect = canvasRef.current.getBoundingClientRect();
     const ctx = canvasRef.current.getContext("2d");
-
     if (isPixelMode) {
-      drawPixel(e, ctx, rect);
+      const x = Math.floor((e.clientX - rect.left) / pixelSize) * pixelSize;
+      const y = Math.floor((e.clientY - rect.top) / pixelSize) * pixelSize;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, pixelSize, pixelSize);
     } else {
       ctx.beginPath();
-      ctx.moveTo(
-        e.clientX - rect.left,
-        e.clientY - rect.top
-      );
+      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
     }
   };
 
@@ -110,23 +115,19 @@ export default function CanvasDrawingApp({ user }) {
     if (!drawing || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const ctx = canvasRef.current.getContext("2d");
-
     if (isPixelMode) {
-      drawPixel(e, ctx, rect);
+      const x = Math.floor((e.clientX - rect.left) / pixelSize) * pixelSize;
+      const y = Math.floor((e.clientY - rect.top) / pixelSize) * pixelSize;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, pixelSize, pixelSize);
     } else {
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.strokeStyle = color;
-      ctx.lineTo(
-        e.clientX - rect.left,
-        e.clientY - rect.top
-      );
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(
-        e.clientX - rect.left,
-        e.clientY - rect.top
-      );
+      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
     }
   };
 
@@ -134,20 +135,19 @@ export default function CanvasDrawingApp({ user }) {
     if (!drawing || !canvasRef.current) return;
     setDrawing(false);
     const ctx = canvasRef.current.getContext("2d");
-    setUndoStack(prev => [...prev, ctx.getImageData(0, 0, width, height)]);
+    setUndoStack((prev) => [...prev, ctx.getImageData(0, 0, width, height)]);
   };
 
-  function drawPixel(e, ctx, rect) {
-    const x = Math.floor((e.clientX - rect.left) / pixelSize) * pixelSize;
-    const y = Math.floor((e.clientY - rect.top) / pixelSize) * pixelSize;
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, pixelSize, pixelSize);
-  }
-
+  // Resize handlers
   const handleResize = () => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
-    const imageData = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+    const imageData = ctx.getImageData(
+      0,
+      0,
+      canvasRef.current.width,
+      canvasRef.current.height
+    );
     setWidth(Number(pendingWidth));
     setHeight(Number(pendingHeight));
     canvasRef.current.width = Number(pendingWidth);
@@ -157,16 +157,14 @@ export default function CanvasDrawingApp({ user }) {
 
   const handlePixelGridResize = () => {
     const parsedCols = parseInt(pendingCols);
-    if (
-      !isNaN(parsedCols) && parsedCols > 0 && parsedCols <= 200
-    ) {
+    if (!isNaN(parsedCols) && parsedCols > 0 && parsedCols <= 200) {
       setCols(parsedCols);
     } else {
       setPendingCols(cols.toString());
     }
   };
 
-  // Save drawing to gallery (with modal)
+  // Save drawing to backend
   const handleSave = () => {
     if (!user) {
       showToast("You must be logged in to save your drawing!", "error");
@@ -176,44 +174,43 @@ export default function CanvasDrawingApp({ user }) {
     setShowNameModal(true);
   };
 
-  const handleConfirmSave = () => {
+  const handleConfirmSave = async () => {
     if (!drawingName.trim() || !canvasRef.current) {
       setShowNameModal(false);
       return;
     }
-    const drawings = JSON.parse(localStorage.getItem(`drawings_${user.username}`) || "[]");
-    const newDrawing = {
-      name: drawingName,
-      date: new Date().toISOString(),
-      dataUrl: canvasRef.current.toDataURL("image/png"),
-      width,
-      height
-    };
-    localStorage.setItem(
-      `drawings_${user.username}`,
-      JSON.stringify([...drawings, newDrawing])
-    );
-    showToast("Drawing saved to your gallery!", "success");
+    try {
+      await api.post("/drawings/", {
+        name: drawingName,
+        image_data_url: canvasRef.current.toDataURL("image/png"),
+        width,
+        height,
+      });
+      showToast("Drawing saved to your gallery!", "success");
+    } catch {
+      showToast("Error saving drawing.", "error");
+    }
     setShowNameModal(false);
   };
 
+  // Undo/Redo/Clear
   const handleUndo = () => {
     if (undoStack.length < 2 || !canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
-    const newUndoStack = [...undoStack];
-    const currentImage = newUndoStack.pop();
-    ctx.putImageData(newUndoStack[newUndoStack.length - 1], 0, 0);
-    setUndoStack(newUndoStack);
-    setRedoStack(prev => [currentImage, ...prev]);
+    const newUndo = [...undoStack];
+    const last = newUndo.pop();
+    ctx.putImageData(newUndo[newUndo.length - 1], 0, 0);
+    setUndoStack(newUndo);
+    setRedoStack((prev) => [last, ...prev]);
   };
 
   const handleRedo = () => {
     if (redoStack.length === 0 || !canvasRef.current) return;
     const ctx = canvasRef.current.getContext("2d");
-    const [currentImage, ...newRedoStack] = redoStack;
-    ctx.putImageData(currentImage, 0, 0);
-    setUndoStack(prev => [...prev, currentImage]);
-    setRedoStack(newRedoStack);
+    const [next, ...rest] = redoStack;
+    ctx.putImageData(next, 0, 0);
+    setUndoStack((prev) => [...prev, next]);
+    setRedoStack(rest);
   };
 
   const handleClear = () => {
@@ -225,8 +222,14 @@ export default function CanvasDrawingApp({ user }) {
   };
 
   const colors = [
-    "#3b82f6", "#10b981", "#f59e42", "#ef4444",
-    "#a855f7", "#64748b", "#000000", "#ffffff"
+    "#3b82f6",
+    "#10b981",
+    "#f59e42",
+    "#ef4444",
+    "#a855f7",
+    "#64748b",
+    "#000000",
+    "#ffffff",
   ];
 
   return (

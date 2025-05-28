@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+// src/App.js
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import api, { setAuthToken } from "./api";
 import Navbar from "./components/Navbar";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
@@ -11,21 +13,27 @@ import ContactPage from "./components/ContactPage";
 import MyDrawingsPage from "./components/MyDrawingsPage";
 import "./DrawingApp.css";
 
-// Helpers to get/set user from localStorage
-function getUser() {
-  const u = localStorage.getItem("drawingUser");
-  return u ? JSON.parse(u) : null;
-}
-function clearUser() {
-  localStorage.removeItem("drawingUser");
-}
-
 export default function App() {
-  const [user, setUser] = useState(getUser());
+  const [user, setUser] = useState(null);
+
+  // Przy starcie wczytujemy tokęn i profil
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setAuthToken(token);
+      api.get("/auth/me")
+        .then(res => setUser(res.data))
+        .catch(() => {
+          localStorage.removeItem("token");
+          setAuthToken(null);
+        });
+    }
+  }, []);
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
+    setAuthToken(null);
     setUser(null);
-    clearUser();
   };
 
   return (
@@ -35,7 +43,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/create" element={<CanvasDrawingApp user={user} />} />
         <Route path="/login" element={<LoginPage setUser={setUser} />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register" element={<RegisterPage setUser={setUser} />} />
         <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />

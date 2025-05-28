@@ -1,9 +1,23 @@
-import React from "react";
+// src/components/MyDrawingsPage.js
+import React, { useState, useEffect } from "react";
+import api from "../api";
 
 export default function MyDrawingsPage({ user }) {
-  const drawings = user
-    ? JSON.parse(localStorage.getItem(`drawings_${user.username}`) || "[]")
-    : [];
+  const [drawings, setDrawings] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    api
+      .get("/drawings/")
+      .then(res => setDrawings(res.data))
+      .catch(err => {
+        console.error(err);
+        setError("Nie udało się pobrać Twoich rysunków.");
+      });
+  }, [user]);
 
   if (!user) {
     return (
@@ -13,11 +27,21 @@ export default function MyDrawingsPage({ user }) {
     );
   }
 
+  if (error) {
+    return (
+      <div className="drawing-card" style={{ marginTop: 40, color: "red" }}>
+        {error}
+      </div>
+    );
+  }
+
   return (
     <div className="drawing-card" style={{ marginTop: 40 }}>
       <header className="drawing-header">
         <h1>My Drawings</h1>
-        <p>All your saved drawings in one place. Download, delete, or list them on the market anytime!</p>
+        <p>
+          All your saved drawings in one place. Download, delete, or list them on the market anytime!
+        </p>
       </header>
       {drawings.length === 0 ? (
         <div style={{ textAlign: "center", color: "#64748b", marginTop: 32 }}>
@@ -33,23 +57,23 @@ export default function MyDrawingsPage({ user }) {
           gap: 28,
           marginTop: 24,
         }}>
-          {drawings.map((drawing, idx) => (
-            <div key={idx} className="nft-card" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          {drawings.map(d => (
+            <div key={d.id} className="nft-card" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <div className="nft-img-wrap" style={{ marginBottom: 10 }}>
                 <img
-                  src={drawing.dataUrl}
-                  alt={drawing.name}
+                  src={d.image_data_url}
+                  alt={d.name}
                   className="nft-img"
                   style={{ maxHeight: 120, background: "#f4f4f4", borderRadius: 12, boxShadow: "0 2px 8px #0001" }}
                 />
               </div>
               <div className="nft-info" style={{ width: "100%", textAlign: "center" }}>
-                <h3 className="nft-title" style={{ color: "#2563eb", marginBottom: 6 }}>{drawing.name}</h3>
+                <h3 className="nft-title" style={{ color: "#2563eb", marginBottom: 6 }}>{d.name}</h3>
                 <div className="nft-author" style={{ fontSize: "0.97rem", color: "#64748b" }}>
-                  {new Date(drawing.date).toLocaleString()}
+                  {new Date(d.created_at).toLocaleString()}
                 </div>
                 <div className="nft-desc" style={{ marginBottom: 10, color: "#64748b" }}>
-                  {drawing.width}x{drawing.height}px
+                  {d.width}×{d.height}px
                 </div>
                 <div className="nft-bottom-row" style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                   <button
@@ -57,8 +81,8 @@ export default function MyDrawingsPage({ user }) {
                     style={{ padding: "7px 15px", fontSize: "1.01rem" }}
                     onClick={() => {
                       const link = document.createElement("a");
-                      link.download = `${drawing.name || "my_drawing"}.png`;
-                      link.href = drawing.dataUrl;
+                      link.download = `${d.name || "my_drawing"}.png`;
+                      link.href = d.image_data_url;
                       link.click();
                     }}
                   >
@@ -66,33 +90,20 @@ export default function MyDrawingsPage({ user }) {
                   </button>
                   <button
                     className="drawing-btn"
-                    style={{
-                      padding: "7px 15px",
-                      fontSize: "1.01rem",
-                      background: "#10b981"
-                    }}
-                    onClick={() => {
-                      // Tu możesz otworzyć modal z formularzem wystawienia na rynek
-                      alert("Listing on the market coming soon!");
+                    style={{ padding: "7px 15px", fontSize: "1.01rem", background: "#10b981" }}
+                    onClick={async () => {
+                      const price = prompt("Price in ETH?");
+                      if (!price) return;
+                      await api.post("/marketplace/", {
+                        drawing_id: d.id,
+                        price: parseFloat(price),
+                        category: "Art",
+                        description: d.name,
+                      });
+                      alert("Listed!");
                     }}
                   >
                     List on Market
-                  </button>
-                  <button
-                    className="drawing-btn"
-                    style={{
-                      padding: "7px 15px",
-                      fontSize: "1.01rem",
-                      background: "#ef4444",
-                    }}
-                    onClick={() => {
-                      const newDrawings = drawings.slice();
-                      newDrawings.splice(idx, 1);
-                      localStorage.setItem(`drawings_${user.username}`, JSON.stringify(newDrawings));
-                      window.location.reload();
-                    }}
-                  >
-                    Delete
                   </button>
                 </div>
               </div>
