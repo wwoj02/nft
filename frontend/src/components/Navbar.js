@@ -19,6 +19,9 @@ export default function Navbar({ user, onLogout }) {
         {user ? (
           <>
             <span className="drawing-navbar-user">Hello, {user.username}!</span>
+            <span style={{ marginLeft: 12, fontWeight: 500 }}>
+              💸 {parseFloat(user.cash || 0).toFixed(2)} ETH
+            </span>
             <button className="drawing-navbar-button login" onClick={onLogout}>Logout</button>
           </>
         ) : (

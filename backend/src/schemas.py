@@ -1,8 +1,6 @@
 # schemas.py
 from datetime import datetime
 from decimal import Decimal
-from typing import List
-
 from pydantic import BaseModel, ConfigDict
 
 # --- Users ---
@@ -16,8 +14,8 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     created_at: datetime
+    cash: Decimal
 
-    # Pydantic v2: zamiast Config.orm_mode
     model_config = ConfigDict(from_attributes=True)
 
 class UserLogin(BaseModel):
@@ -46,17 +44,22 @@ class Drawing(DrawingBase):
     model_config = ConfigDict(from_attributes=True)
 
 # --- Marketplace ---
-class MarketplaceItemBase(BaseModel):
+class MarketplaceItemCreate(BaseModel):
     drawing_id: int
     price: Decimal
     category: str
     description: str
 
-class MarketplaceItemCreate(MarketplaceItemBase):
-    pass
-
-class MarketplaceItem(MarketplaceItemBase):
+class MarketplaceItemOut(BaseModel):
     id: int
+    name: str
+    image_data_url: str
+    width: int
+    height: int
+    seller_id: int
+    price: Decimal
+    category: str
+    description: str
     status: str
     created_at: datetime
 

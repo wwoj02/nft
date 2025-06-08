@@ -1,4 +1,3 @@
-// src/components/MyDrawingsPage.js
 import React, { useState, useEffect } from "react";
 import api from "../api";
 
@@ -7,17 +6,26 @@ export default function MyDrawingsPage({ user }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) {
-      return;
-    }
+    if (!user) return;
     api
       .get("/drawings/")
       .then(res => setDrawings(res.data))
-      .catch(err => {
-        console.error(err);
-        setError("Nie udało się pobrać Twoich rysunków.");
-      });
+      .catch(() => setError("Nie udało się pobrać Twoich rysunków."));
   }, [user]);
+
+  const handleDeposit = async () => {
+    const amount = prompt("Amount to deposit (ETH):");
+    if (!amount) return;
+    try {
+      const res = await api.post("/wallet/deposit", null, {
+        params: { amount: parseFloat(amount) },
+      });
+      alert(`Deposit successful! Your new balance: ${res.data.cash.toFixed(2)} ETH`);
+      window.location.reload();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Deposit failed");
+    }
+  };
 
   if (!user) {
     return (
@@ -26,7 +34,6 @@ export default function MyDrawingsPage({ user }) {
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="drawing-card" style={{ marginTop: 40, color: "red" }}>
@@ -42,6 +49,9 @@ export default function MyDrawingsPage({ user }) {
         <p>
           All your saved drawings in one place. Download, delete, or list them on the market anytime!
         </p>
+        <button onClick={handleDeposit} className="drawing-btn" style={{ background: "#fbbf24", marginTop: 12 }}>
+          💰 Deposit ETH
+        </button>
       </header>
       {drawings.length === 0 ? (
         <div style={{ textAlign: "center", color: "#64748b", marginTop: 32 }}>

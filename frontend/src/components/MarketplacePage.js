@@ -1,4 +1,3 @@
-// src/components/MarketplacePage.js
 import React, { useState, useEffect } from "react";
 import "../DrawingApp.css";
 import api from "../api";
@@ -9,7 +8,7 @@ export default function MarketplacePage() {
   useEffect(() => {
     api
       .get("/marketplace/")
-      .then((res) => setItems(res.data))
+      .then(res => setItems(res.data))
       .catch(console.error);
   }, []);
 
@@ -27,15 +26,13 @@ export default function MarketplacePage() {
           <b>No items listed yet.</b>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 28,
-            marginTop: 24,
-          }}
-        >
-          {items.map((it) => (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: 28,
+          marginTop: 24,
+        }}>
+          {items.map(it => (
             <div key={it.id} className="nft-card">
               <div className="nft-info">
                 <h3 className="nft-title">Drawing #{it.drawing_id}</h3>
@@ -45,7 +42,19 @@ export default function MarketplacePage() {
                 <div className="nft-author" style={{ marginTop: 4, fontSize: "0.9rem" }}>
                   Listed: {new Date(it.created_at).toLocaleDateString()}
                 </div>
-                <button className="drawing-btn" style={{ marginTop: 8 }}>
+                <button
+                  className="drawing-btn"
+                  style={{ marginTop: 8 }}
+                  onClick={async () => {
+                    try {
+                      await api.post(`/marketplace/buy/${it.id}`);
+                      alert("Purchase successful!");
+                      window.location.reload();
+                    } catch (err) {
+                      alert(err.response?.data?.detail || "Purchase failed");
+                    }
+                  }}
+                >
                   Buy
                 </button>
               </div>
