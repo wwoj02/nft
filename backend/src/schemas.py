@@ -1,9 +1,9 @@
 # schemas.py
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 # --- Users ---
 class UserBase(BaseModel):
@@ -13,13 +13,6 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
-class User(UserBase):
-    id: int
-    created_at: datetime
-
-    # Pydantic v2: zamiast Config.orm_mode
-    model_config = ConfigDict(from_attributes=True)
-
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -27,6 +20,18 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class User(UserBase):
+    id: int
+    created_at: datetime
+    cash: Optional[Decimal] = Decimal(0)
+
+    class Config:
+        orm_mode = True
+
+# --- Deposit ---
+class DepositRequest(BaseModel):
+    amount: Decimal
 
 # --- Drawings ---
 class DrawingBase(BaseModel):
@@ -43,7 +48,8 @@ class Drawing(DrawingBase):
     user_id: int
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        orm_mode = True
 
 # --- Marketplace ---
 class MarketplaceItemBase(BaseModel):
@@ -57,7 +63,10 @@ class MarketplaceItemCreate(MarketplaceItemBase):
 
 class MarketplaceItem(MarketplaceItemBase):
     id: int
+    seller_id: int
+    seller_username: str   # nowa własność
     status: str
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        orm_mode = True
