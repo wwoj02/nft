@@ -1,8 +1,24 @@
+// src/components/Navbar.js
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import api from "../api";
 
 export default function Navbar({ user, onLogout }) {
   const navigate = useNavigate();
+
+  const handleDeposit = async () => {
+    const amount = prompt("Amount to deposit (ETH):");
+    if (!amount) return;
+    try {
+      const res = await api.post("/wallet/deposit", null, {
+        params: { amount: parseFloat(amount) },
+      });
+      alert(`Deposit successful! New balance: ${res.data.cash.toFixed(2)} ETH`);
+      window.location.reload();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Deposit failed");
+    }
+  };
 
   return (
     <div className="drawing-navbar">
@@ -19,10 +35,25 @@ export default function Navbar({ user, onLogout }) {
         {user ? (
           <>
             <span className="drawing-navbar-user">Hello, {user.username}!</span>
-            <span style={{ marginLeft: 12, fontWeight: 500 }}>
-              💸 {parseFloat(user.cash || 0).toFixed(2)} ETH
-            </span>
-            <button className="drawing-navbar-button login" onClick={onLogout}>Logout</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 12 }}>
+              <span style={{ fontWeight: 500, color: "#2563eb" }}>
+                💸 {parseFloat(user.cash || 0).toFixed(2)} ETH
+              </span>
+              <button
+                className="drawing-navbar-button"
+                style={{
+                  background: "#fbbf24",
+                  fontSize: "0.93rem",
+                  padding: "6px 14px",
+                }}
+                onClick={handleDeposit}
+              >
+                Deposit
+              </button>
+            </div>
+            <button className="drawing-navbar-button login" onClick={onLogout}>
+              Logout
+            </button>
           </>
         ) : (
           <>

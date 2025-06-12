@@ -25,6 +25,7 @@ class Drawing(Base):
 class MarketplaceItem(Base):
     __tablename__ = "marketplace_items"
     id = Column(Integer, primary_key=True, index=True)
+    drawing_id = Column(Integer, ForeignKey("drawings.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(100), nullable=False)
     image_data_url = Column(Text, nullable=False)
     width = Column(Integer, nullable=False)
@@ -35,3 +36,4 @@ class MarketplaceItem(Base):
     description = Column(Text, nullable=False)
     status = Column(String(20), default="listed", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+

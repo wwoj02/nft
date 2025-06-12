@@ -44,7 +44,7 @@ export default function App() {
         <Route path="/create" element={<CanvasDrawingApp user={user} />} />
         <Route path="/login" element={<LoginPage setUser={setUser} />} />
         <Route path="/register" element={<RegisterPage setUser={setUser} />} />
-        <Route path="/marketplace" element={<MarketplacePage />} />
+        <Route path="/marketplace" element={<MarketplacePage user={user} />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/my-drawings" element={<MyDrawingsPage user={user} />} />

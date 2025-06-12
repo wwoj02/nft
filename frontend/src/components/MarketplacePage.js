@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "../DrawingApp.css";
 import api from "../api";
 
-export default function MarketplacePage() {
+export default function MarketplacePage({ user }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -11,6 +11,27 @@ export default function MarketplacePage() {
       .then(res => setItems(res.data))
       .catch(console.error);
   }, []);
+
+  const handleBuy = async (id) => {
+    try {
+      await api.post(`/marketplace/buy/${id}`);
+      alert("Purchase successful!");
+      window.location.reload();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Purchase failed");
+    }
+  };
+
+  const handleUnlist = async (id) => {
+    if (!window.confirm("Are you sure you want to unlist this item?")) return;
+    try {
+      await api.delete(`/marketplace/${id}`);
+      alert("Unlisted successfully!");
+      window.location.reload();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Unlisting failed");
+    }
+  };
 
   return (
     <div className="drawing-card" style={{ marginTop: 40, minHeight: "60vh" }}>
@@ -42,21 +63,24 @@ export default function MarketplacePage() {
                 <div className="nft-author" style={{ marginTop: 4, fontSize: "0.9rem" }}>
                   Listed: {new Date(it.created_at).toLocaleDateString()}
                 </div>
-                <button
-                  className="drawing-btn"
-                  style={{ marginTop: 8 }}
-                  onClick={async () => {
-                    try {
-                      await api.post(`/marketplace/buy/${it.id}`);
-                      alert("Purchase successful!");
-                      window.location.reload();
-                    } catch (err) {
-                      alert(err.response?.data?.detail || "Purchase failed");
-                    }
-                  }}
-                >
-                  Buy
-                </button>
+
+                {user && user.id === it.seller_id ? (
+                  <button
+                    className="drawing-btn"
+                    style={{ marginTop: 8, background: "#ef4444" }}
+                    onClick={() => handleUnlist(it.id)}
+                  >
+                    Unlist
+                  </button>
+                ) : (
+                  <button
+                    className="drawing-btn"
+                    style={{ marginTop: 8 }}
+                    onClick={() => handleBuy(it.id)}
+                  >
+                    Buy
+                  </button>
+                )}
               </div>
             </div>
           ))}

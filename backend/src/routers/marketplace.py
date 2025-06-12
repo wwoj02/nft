@@ -54,28 +54,55 @@ def read_items(db: Session = Depends(get_db)):
              .filter(models.MarketplaceItem.status == "listed")\
              .all()
 
+
 @router.post("/buy/{item_id}")
 def buy_item(
-    item_id: int,
-    db: Session = Depends(get_db),
-    buyer: models.User = Depends(get_current_user)
+        item_id: int,
+        db: Session = Depends(get_db),
+        buyer: models.User = Depends(get_current_user)
 ):
-    item = db.query(models.MarketplaceItem)\
-             .filter_by(id=item_id, status="listed")\
-             .first()
+    # Pobierz NFT z marketplace
+    item = db.query(models.MarketplaceItem) \
+        .filter_by(id=item_id, status="listed") \
+        .first()
+
     if not item:
         raise HTTPException(status_code=404, detail="Item not available")
+
+    # 🚫 Kupujący nie może być sprzedawcą
     if item.seller_id == buyer.id:
         raise HTTPException(status_code=400, detail="Nie możesz kupić własnej oferty")
+
+    # Pobierz konto sprzedawcy
     seller = db.query(models.User).get(item.seller_id)
+    if not seller:
+        raise HTTPException(status_code=404, detail="Sprzedawca nie istnieje")
+
+    # 💸 Sprawdź środki
     if (buyer.cash or 0) < item.price:
         raise HTTPException(status_code=400, detail="Niewystarczające środki")
-    # transfer
+
+    # 💸 Transfer pieniędzy
     buyer.cash -= item.price
     seller.cash = (seller.cash or 0) + item.price
+
+    # ✅ Przypisz NFT do kupującego
+    new_drawing = models.Drawing(
+        user_id=buyer.id,
+        name=item.name,
+        image_data_url=item.image_data_url,
+        width=item.width,
+        height=item.height,
+    )
+    db.add(new_drawing)
+
+    # Oznacz jako sprzedane
     item.status = "sold"
+
+    # Zapisz wszystko
     db.commit()
     return {"message": "Zakup zakończony sukcesem"}
+
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def unlist_item(
@@ -83,14 +110,20 @@ def unlist_item(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
+    # Znajdź wystawiony przedmiot
     item = db.query(models.MarketplaceItem)\
              .filter_by(id=item_id, status="listed")\
              .first()
+
+    # Sprawdź czy istnieje i czy jest "listed"
     if not item:
         raise HTTPException(status_code=404, detail="Brak takiej oferty")
+
+    # Sprawdź czy użytkownik to właściciel
     if item.seller_id != user.id:
         raise HTTPException(status_code=403, detail="Nie możesz cofnąć czyjejś oferty")
-    # przywróć rysunek do drawings
+
+    # 🎨 Przywróć rysunek użytkownikowi
     restored = models.Drawing(
         user_id        = user.id,
         name           = item.name,
@@ -99,5 +132,8 @@ def unlist_item(
         height         = item.height
     )
     db.add(restored)
+
+    # ❌ Usuń z marketplace
     db.delete(item)
+
     db.commit()

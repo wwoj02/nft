@@ -27,6 +27,53 @@ export default function MyDrawingsPage({ user }) {
     }
   };
 
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Only image files are allowed!");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const maxW = 700;
+        const maxH = 450;
+        let w = img.width;
+        let h = img.height;
+        const scale = Math.min(maxW / w, maxH / h, 1);
+        w = w * scale;
+        h = h * scale;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const dataUrl = canvas.toDataURL("image/png");
+
+        try {
+          await api.post("/drawings/", {
+            name: file.name.split(".")[0],
+            image_data_url: dataUrl,
+            width: Math.round(w),
+            height: Math.round(h),
+          });
+          alert("Image uploaded as NFT!");
+          window.location.reload();
+        } catch {
+          alert("Failed to upload image.");
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (!user) {
     return (
       <div className="drawing-card" style={{ marginTop: 40 }}>
@@ -34,6 +81,7 @@ export default function MyDrawingsPage({ user }) {
       </div>
     );
   }
+
   if (error) {
     return (
       <div className="drawing-card" style={{ marginTop: 40, color: "red" }}>
@@ -49,10 +97,29 @@ export default function MyDrawingsPage({ user }) {
         <p>
           All your saved drawings in one place. Download, delete, or list them on the market anytime!
         </p>
-        <button onClick={handleDeposit} className="drawing-btn" style={{ background: "#fbbf24", marginTop: 12 }}>
-          💰 Deposit ETH
-        </button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16, justifyContent: "center" }}>
+          <button onClick={handleDeposit} className="drawing-btn" style={{ background: "#fbbf24" }}>
+            💰 Deposit ETH
+          </button>
+
+          <button
+            className="drawing-btn"
+            style={{ background: "#3b82f6", cursor: "pointer" }}
+            onClick={() => document.getElementById("upload-image-nft").click()}
+          >
+            📤 Upload Image NFT
+          </button>
+
+          <input
+            id="upload-image-nft"
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            style={{ display: "none" }}
+            onChange={handleUpload}
+          />
+        </div>
       </header>
+
       {drawings.length === 0 ? (
         <div style={{ textAlign: "center", color: "#64748b", marginTop: 32 }}>
           <b>No drawings saved yet.</b>
@@ -111,6 +178,7 @@ export default function MyDrawingsPage({ user }) {
                         description: d.name,
                       });
                       alert("Listed!");
+                      window.location.reload();
                     }}
                   >
                     List on Market
